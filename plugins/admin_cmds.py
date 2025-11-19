@@ -1,5 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, LinkPreviewOptions
+from pyrogram.enums import ChatMembersFilter
 import asyncio
 from utils.decorators import admin_only
 from utils.helpers import get_lang, is_creator
@@ -44,7 +45,7 @@ async def reload_admins(client: Client, message: Message):
                 await maybe
 
         admins = []
-        async for member in client.get_chat_members(message.chat.id, filter="administrators"):
+        async for member in client.get_chat_members(message.chat.id, filter=ChatMembersFilter.ADMINISTRATORS):
             try:
                 admins.append(member.user.id)
             except Exception:
