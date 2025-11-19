@@ -1,101 +1,150 @@
 from functools import wraps
 from pyrogram import Client
 from pyrogram.types import Message
-from utils.lang import get_lang
-from utils.database import Database
+from config import OWNER_ID, SUDO_USERS
 import logging
 
-db = Database()
 logger = logging.getLogger(__name__)
 
+def _extract_message(args, kwargs):
+    for v in args:
+        if isinstance(v, Message):
+            return v
+    for v in kwargs.values():
+        if isinstance(v, Message):
+            return v
+    return None
 
-async def _get_lang_for(message: Message):
-    if message.chat and message.chat.type in ("group", "supergroup"):
-        return await db.get_group_language(message.chat.id) or "en"
-    return "en"
+def _extract_client(args, kwargs):
+    if args:
+        if isinstance(args[0], Client):
+            return args[0]
+    return kwargs.get("client")
 
+def _is_owner(user_id: int) -> bool:
+    return user_id == OWNER_ID
+
+def _is_sudo(user_id: int) -> bool:
+    if isinstance(SUDO_USERS, (list, tuple, set)):
+        return user_id in SUDO_USERS
+    return user_id == SUDO_USERS
+
+async def _reply_with_lang(message: Message, key: str, lang: str = "en"):
+    try:
+        from utils.lang import get_lang
+        text = await get_lang(key, lang)
+    except Exception:
+        text = key
+    try:
+        await message.reply_text(text)
+    except Exception as e:
+        logger.error(f"failed to send reply: {e}")
 
 def owner_only(func):
     @wraps(func)
-    async def wrapper(client: Client, message: Message):
-        lang = await _get_lang_for(message)
-        if message.from_user.id != client.me.id:
-            await message.reply_text(
-                get_lang("owner_only", lang)
-            )
+    async def wrapper(*args, **kwargs):
+        message = _extract_message(args, kwargs)
+        if not message or not getattr(message, "from_user", None):
             return
-        return await func(client, message)
+        if not _is_owner(message.from_user.id):
+            try:
+                await _reply_with_lang(message, "owner_only", "en")
+            except Exception:
+                await message.reply_text("🛑 This command is only for my Owner!")
+            return
+        return await func(*args, **kwargs)
     return wrapper
-
 
 def sudo_only(func):
     @wraps(func)
-    async def wrapper(client: Client, message: Message):
-        lang = await _get_lang_for(message)
-        uid = message.from_user.id
-        sudo = client.sudo if hasattr(client, "sudo") else []
-        owner = client.me.id
-
-        if uid not in sudo and uid != owner:
-            await message.reply_text(
-                get_lang("sudo_only", lang)
-            )
+    async def wrapper(*args, **kwargs):
+        message = _extract_message(args, kwargs)
+        if not message or not getattr(message, "from_user", None):
             return
-        return await func(client, message)
+        uid = message.from_user.id
+        if not (_is_sudo(uid) or _is_owner(uid)):
+            try:
+                lang = "en"
+                try:
+                    from utils.database import Database
+                    db = Database()
+                    if message.chat and getattr(message.chat, "id", None):
+                        lang = await db.get_group_language(message.chat.id) or "en"
+                except Exception:
+                    lang = "en"
+                await _reply_with_lang(message, "sudo_only", lang)
+            except Exception:
+                await message.reply_text("🛑 This command requires superuser access!")
+            return
+        return await func(*args, **kwargs)
     return wrapper
-
 
 def admin_only(func):
     @wraps(func)
-    async def wrapper(client: Client, message: Message):
-        lang = await _get_lang_for(message)
-
-        if message.chat.type == "private":
-            await message.reply_text(
-                get_lang("group_only", lang)
-            )
+    async def wrapper(*args, **kwargs):
+        message = _extract_message(args, kwargs)
+        client = _extract_client(args, kwargs)
+        if not message or not client:
             return
-
+        if message.chat is None or getattr(message.chat, "type", "") == "private":
+            try:
+                await _reply_with_lang(message, "group_only", "en")
+            except Exception:
+                await message.reply_text("❌ This command is for groups only!")
+            return
         try:
             member = await client.get_chat_member(message.chat.id, message.from_user.id)
-            status = (member.status or "").lower()
-
+            status = (getattr(member, "status", "") or "").lower()
             if status not in ("administrator", "creator"):
-                await message.reply_text(
-                    get_lang("admin_group_only", lang)
-                )
+                try:
+                    lang = "en"
+                    try:
+                        from utils.database import Database
+                        db = Database()
+                        lang = await db.get_group_language(message.chat.id) or "en"
+                    except Exception:
+                        lang = "en"
+                    await _reply_with_lang(message, "admin_only", lang)
+                except Exception:
+                    await message.reply_text("🛑 This command is for admins only!")
                 return
         except Exception as e:
-            logger.error(f"admin check error: {e}")
+            logger.error(f"admin_only check failed: {e}")
             return
-
-        return await func(client, message)
+        return await func(*args, **kwargs)
     return wrapper
-
 
 def creator_only(func):
     @wraps(func)
-    async def wrapper(client: Client, message: Message):
-        lang = await _get_lang_for(message)
-
-        if message.chat.type == "private":
-            await message.reply_text(
-                get_lang("group_only", lang)
-            )
+    async def wrapper(*args, **kwargs):
+        message = _extract_message(args, kwargs)
+        client = _extract_client(args, kwargs)
+        if not message or not client:
             return
-
+        if message.chat is None or getattr(message.chat, "type", "") == "private":
+            try:
+                await _reply_with_lang(message, "group_only", "en")
+            except Exception:
+                await message.reply_text("🛑 This command is for groups only!")
+            return
         try:
             member = await client.get_chat_member(message.chat.id, message.from_user.id)
-            status = (member.status or "").lower()
-
+            status = (getattr(member, "status", "") or "").lower()
             if status != "creator":
-                await message.reply_text(
-                    get_lang("creator_only", lang)
-                )
+                try:
+                    lang = "en"
+                    try:
+                        from utils.database import Database
+                        db = Database()
+                        lang = await db.get_group_language(message.chat.id) or "en"
+                    except Exception:
+                        lang = "en"
+                    await _reply_with_lang(message, "creator_only", lang)
+                except Exception:
+                    await message.reply_text("🛑 This command is restricted to group creator only!")
                 return
         except Exception as e:
-            logger.error(f"creator check error: {e}")
+            logger.error(f"creator_only check failed: {e}")
             return
-
-        return await func(client, message)
+        return await func(*args, **kwargs)
     return wrapper
