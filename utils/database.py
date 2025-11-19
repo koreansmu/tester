@@ -41,7 +41,7 @@ class Database:
         return bool(self.client)
 
     async def connect(self):
-        if self.client and self.db:
+        if self.client is not None and self.db is not None:
             return
 
         db_name = DB_NAME if DB_NAME and isinstance(DB_NAME, str) and DB_NAME.strip() else DEFAULT_DB_NAME
@@ -89,13 +89,13 @@ class Database:
             await self.overall_stats.update_one(
                 {"_id": "global"},
                 {"$setOnInsert": {"total_groups": 0, "total_users": 0}},
-                upsert=True
+                upsert=True,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Error creating indexes: %s", e)
 
     async def _ensure(self):
-        if not (self.client and self.db and self.users):
+        if self.client is None or self.db is None or self.users is None:
             await self.connect()
 
     async def add_active_group(self, chat_id, chat_title):
@@ -104,13 +104,13 @@ class Database:
             res = await self.active_groups.update_one(
                 {"chat_id": chat_id},
                 {"$set": {"chat_id": chat_id, "title": chat_title}},
-                upsert=True
+                upsert=True,
             )
             if getattr(res, "upserted_id", None):
                 await self.overall_stats.update_one(
                     {"_id": "global"},
                     {"$inc": {"total_groups": 1}},
-                    upsert=True
+                    upsert=True,
                 )
         except DuplicateKeyError:
             pass
@@ -122,7 +122,7 @@ class Database:
             await self.overall_stats.update_one(
                 {"_id": "global"},
                 {"$inc": {"total_groups": -1}},
-                upsert=True
+                upsert=True,
             )
 
     async def get_active_groups(self):
@@ -135,13 +135,13 @@ class Database:
             res = await self.users.update_one(
                 {"user_id": user_id},
                 {"$set": {"user_id": user_id, "username": username, "first_name": first_name}},
-                upsert=True
+                upsert=True,
             )
             if getattr(res, "upserted_id", None):
                 await self.overall_stats.update_one(
                     {"_id": "global"},
                     {"$inc": {"total_users": 1}},
-                    upsert=True
+                    upsert=True,
                 )
         except DuplicateKeyError:
             pass
@@ -155,7 +155,7 @@ class Database:
         await self.media_settings.update_one(
             {"chat_id": chat_id},
             {"$set": {"delay": delay, "enabled": True}},
-            upsert=True
+            upsert=True,
         )
 
     async def get_media_delay(self, chat_id):
@@ -168,7 +168,7 @@ class Database:
         await self.media_settings.update_one(
             {"chat_id": chat_id},
             {"$set": {"enabled": False}},
-            upsert=True
+            upsert=True,
         )
 
     async def set_edit_delay(self, chat_id, delay):
@@ -176,7 +176,7 @@ class Database:
         await self.edit_settings.update_one(
             {"chat_id": chat_id},
             {"$set": {"delay": delay, "enabled": True}},
-            upsert=True
+            upsert=True,
         )
 
     async def get_edit_delay(self, chat_id):
@@ -189,7 +189,7 @@ class Database:
         await self.slang_settings.update_one(
             {"chat_id": chat_id},
             {"$set": {"enabled": enabled}},
-            upsert=True
+            upsert=True,
         )
 
     async def get_slang_status(self, chat_id):
@@ -202,7 +202,7 @@ class Database:
         await self.groups_stats.update_one(
             {"chat_id": chat_id},
             {"$set": {"auto_clean": enabled}},
-            upsert=True
+            upsert=True,
         )
 
     async def get_auto_clean_status(self, chat_id):
@@ -215,7 +215,7 @@ class Database:
         await self.pretender_settings.update_one(
             {"chat_id": chat_id},
             {"$set": {"enabled": enabled}},
-            upsert=True
+            upsert=True,
         )
 
     async def get_pretender_status(self, chat_id):
@@ -228,7 +228,7 @@ class Database:
         await self.edit_auth.update_one(
             {"chat_id": chat_id, "user_id": user_id},
             {"$set": {"chat_id": chat_id, "user_id": user_id}},
-            upsert=True
+            upsert=True,
         )
 
     async def remove_edit_auth(self, chat_id, user_id):
@@ -248,7 +248,7 @@ class Database:
         await self.media_auth.update_one(
             {"chat_id": chat_id, "user_id": user_id},
             {"$set": {"chat_id": chat_id, "user_id": user_id}},
-            upsert=True
+            upsert=True,
         )
 
     async def remove_media_auth(self, chat_id, user_id):
@@ -268,7 +268,7 @@ class Database:
         await self.slang_auth.update_one(
             {"chat_id": chat_id, "user_id": user_id},
             {"$set": {"chat_id": chat_id, "user_id": user_id}},
-            upsert=True
+            upsert=True,
         )
 
     async def remove_slang_auth(self, chat_id, user_id):
