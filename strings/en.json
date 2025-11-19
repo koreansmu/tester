@@ -2,7 +2,7 @@
   "active_groups_header": "📊 Active Groups ({count}):",
   "admin_logs_header": "📋 Recent Admin Actions:",
   "admin_only": "🛑 Only group admins can change group language!",
-  "admin_group_only":"🛑 This command is for group admins only!",
+  "admin_group_only": "🛑 This command is for group admins only!",
   "admin_restart_reply": "🔁 Restarting the Guard-x...",
   "admin_restart_log": "{bot} Restarted the Guard-x (by: {user_id})",
   "admin_restart_error": "unable to restart the guard x bot: {error}",
