@@ -6,7 +6,7 @@ from pyrogram import Client, idle
 from pyrogram.enums import ParseMode
 from config import API_ID, API_HASH, BOT_TOKEN, BOT_USERNAME, LOGGER_ID
 from utils.database import Database
-from utils.cache import init_cache, get_cache
+from utils.cache import init_cache
 from utils.logger import setup_logger
 
 setup_logger()
@@ -18,10 +18,10 @@ app = Client(
     api_hash=API_HASH,
     bot_token=BOT_TOKEN,
     plugins=dict(root="plugins"),
-    parse_mode=ParseMode.HTML
+    parse_mode=ParseMode.HTML,
 )
 
-db = Database()
+db = None
 cache = None
 
 async def _send_startup_message():
@@ -33,25 +33,30 @@ async def _send_startup_message():
         logger.exception(f"Failed to send startup message to logger id: {e}")
 
 async def main():
-    global cache
+    global db, cache
+    db = Database()
     try:
         await db.connect()
-        await init_cache(db)
-        cache = get_cache()
+        cache = await init_cache(db)
+    except Exception as e:
+        logger.exception("Failed to connect to database or initialize cache: %s", e)
+        return
+
+    try:
         await app.start()
         bot_info = await app.get_me()
-        logger.info(f"Bot started successfully: @{bot_info.username}")
+        logger.info("Bot started successfully: @%s", bot_info.username)
         await _send_startup_message()
         await idle()
     except Exception as e:
-        logger.exception(f"Error starting bot: {e}")
+        logger.exception("Error starting bot: %s", e)
     finally:
         try:
             await app.stop()
         except Exception:
             pass
         try:
-            if getattr(db, "client", None):
+            if db and getattr(db, "client", None):
                 db.client.close()
         except Exception:
             pass
