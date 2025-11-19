@@ -6,13 +6,12 @@ from pyrogram import Client, idle
 from pyrogram.enums import ParseMode
 from config import API_ID, API_HASH, BOT_TOKEN, BOT_USERNAME, LOGGER_ID
 from utils.database import Database
-from utils.cache import CacheManager
+from utils.cache import init_cache, get_cache
 from utils.logger import setup_logger
 
 setup_logger()
 logger = logging.getLogger(__name__)
 
-# Initialize bot
 app = Client(
     "guard_x",
     api_id=API_ID,
@@ -22,9 +21,8 @@ app = Client(
     parse_mode=ParseMode.HTML
 )
 
-# Global instances
 db = Database()
-cache = CacheManager()
+cache = None
 
 async def _send_startup_message():
     try:
@@ -35,24 +33,26 @@ async def _send_startup_message():
         logger.exception(f"Failed to send startup message to logger id: {e}")
 
 async def main():
-    """Main function to start the bot"""
+    global cache
     try:
+        await db.connect()
+        await init_cache(db)
+        cache = get_cache()
         await app.start()
         bot_info = await app.get_me()
         logger.info(f"Bot started successfully: @{bot_info.username}")
-
-        await cache.load_from_db(db)
-        logger.info("Cache loaded successfully")
-
         await _send_startup_message()
-
         await idle()
-
     except Exception as e:
         logger.exception(f"Error starting bot: {e}")
     finally:
         try:
             await app.stop()
+        except Exception:
+            pass
+        try:
+            if getattr(db, "client", None):
+                db.client.close()
         except Exception:
             pass
         logger.info("Bot stopped")
