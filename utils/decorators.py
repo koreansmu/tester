@@ -29,6 +29,20 @@ def _is_sudo(user_id: int) -> bool:
         return user_id in SUDO_USERS
     return user_id == SUDO_USERS
 
+def _normalize_status(status) -> str:
+    try:
+        if status is None:
+            return ""
+        if isinstance(status, str):
+            return status.lower()
+        val = getattr(status, "value", None)
+        if isinstance(val, str):
+            return val.lower()
+        s = str(status).lower()
+        return s
+    except Exception:
+        return ""
+
 async def _reply_with_lang(message: Message, key: str, lang: str = "en"):
     try:
         from utils.lang import get_lang
@@ -94,8 +108,8 @@ def admin_only(func):
             return
         try:
             member = await client.get_chat_member(message.chat.id, message.from_user.id)
-            status = (getattr(member, "status", "") or "").lower()
-            if status not in ("administrator", "creator"):
+            status = _normalize_status(getattr(member, "status", None))
+            if not any(k in status for k in ("administrator", "creator", "owner", "admin")):
                 try:
                     lang = "en"
                     try:
@@ -129,8 +143,8 @@ def creator_only(func):
             return
         try:
             member = await client.get_chat_member(message.chat.id, message.from_user.id)
-            status = (getattr(member, "status", "") or "").lower()
-            if status != "creator":
+            status = _normalize_status(getattr(member, "status", None))
+            if "creator" not in status and "owner" not in status:
                 try:
                     lang = "en"
                     try:
