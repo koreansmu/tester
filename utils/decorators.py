@@ -62,7 +62,7 @@ def admin_only(func):
 
             if status not in ("administrator", "creator"):
                 await message.reply_text(
-                    get_lang("admin_only", lang)
+                    get_lang("admin_group_only", lang)
                 )
                 return
         except Exception as e:
