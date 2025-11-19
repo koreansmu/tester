@@ -2,10 +2,12 @@ import logging
 import time
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
-from config import MONGO_URI
+from config import MONGO_URI, DB_NAME
 from utils import logger as ulogger
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_DB_NAME = "BillaGuardian"
 
 class Database:
     def __init__(self):
@@ -36,8 +38,16 @@ class Database:
         self.overall_stats = None
 
     async def connect(self):
+        if self.client and self.db:
+            return
+
+        # fallback if DB_NAME isnt provided
+        db_name = DB_NAME if (DB_NAME and isinstance(DB_NAME, str) and DB_NAME.strip()) else DEFAULT_DB_NAME
+
+        # created client globally
         self.client = AsyncIOMotorClient(MONGO_URI)
-        self.db = self.client["billa_guardian"]
+        self.db = self.client[db_name]
+
         self.active_groups = self.db["active_groups"]
         self.users = self.db["users"]
         self.groups_stats = self.db["groups_stats"]
@@ -52,6 +62,7 @@ class Database:
         self.admin_logs = self.db["admin_logs"]
         self.group_languages = self.db["group_languages"]
         self.overall_stats = self.db["overall_stats"]
+
         await self._create_indexes()
 
     async def _create_indexes(self):
@@ -68,7 +79,7 @@ class Database:
             await self.media_auth.create_index([("chat_id", 1), ("user_id", 1)], unique=True)
             await self.slang_auth.create_index([("chat_id", 1), ("user_id", 1)], unique=True)
             await self.group_languages.create_index("chat_id", unique=True)
-            # Do not create a unique index on _id (MongoDB already enforces _id uniqueness)
+            # ensure global doc
             await self.overall_stats.update_one(
                 {"_id": "global"},
                 {"$setOnInsert": {"total_groups": 0, "total_users": 0}},
@@ -77,6 +88,7 @@ class Database:
         except Exception as e:
             logger.warning("Error creating indexes: %s", e)
 
+    
     async def add_active_group(self, chat_id: int, chat_title: str):
         try:
             res = await self.active_groups.update_one(
