@@ -2,7 +2,7 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 import asyncio
 import logging
-from utils.helpers import get_lang, _get_group_lang if False else None  # keep lint happy
+from utils.helpers import get_lang, _get_group_lang
 from utils.cache import get_cache, init_cache
 from utils.decorators import admin_only
 
