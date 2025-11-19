@@ -19,7 +19,6 @@ class Database:
                 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
         except Exception:
             pass
-
         self.client = None
         self.db = None
         self.active_groups = None
@@ -43,13 +42,10 @@ class Database:
     async def connect(self):
         if self.client is not None and self.db is not None:
             return
-
         db_name = DB_NAME if DB_NAME and isinstance(DB_NAME, str) and DB_NAME.strip() else DEFAULT_DB_NAME
-
         try:
             self.client = AsyncIOMotorClient(MONGO_URI)
             self.db = self.client[db_name]
-
             self.active_groups = self.db["active_groups"]
             self.users = self.db["users"]
             self.groups_stats = self.db["groups_stats"]
@@ -64,13 +60,12 @@ class Database:
             self.admin_logs = self.db["admin_logs"]
             self.group_languages = self.db["group_languages"]
             self.overall_stats = self.db["overall_stats"]
-
             await self._create_indexes()
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
             self.client = None
             self.db = None
-            raise
+            return
 
     async def _create_indexes(self):
         try:
