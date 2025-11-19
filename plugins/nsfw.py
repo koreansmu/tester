@@ -153,7 +153,9 @@ async def check_and_handle_nsfw(client: Client, message: Message, file_path: str
                 except:
                     pass
 
-@Client.on_message(filters.command("antinsfw") & filters.group & creator_only)
+
+@Client.on_message(filters.command("antinsfw") & filters.group)
+@creator_only
 async def nsfw_mode_command(client: Client, message: Message):
     arg = (message.text.split(maxsplit=1)[1] if len(message.command) > 1 else "").lower()
     lang = await db.get_group_language(message.chat.id)
