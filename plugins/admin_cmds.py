@@ -2,16 +2,16 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, LinkPreviewOptions
 from pyrogram.enums import ChatMembersFilter
 import asyncio
-from utils.decorators import admin_only
+from utils.decorators import admin_only, creator_only
 from utils.helpers import get_lang, is_creator
 from utils.database import Database
-from utils.cache import CacheManager
+from utils.cache import CacheManager, get_cache
 from config import SUDO_USERS
 import logging
 import datetime
 
 db = Database()
-cache = CacheManager()
+_cache_fallback = CacheManager()
 logger = logging.getLogger(__name__)
 
 def _is_sudo(uid: int) -> bool:
@@ -32,11 +32,18 @@ async def _send(message: Message, text: str, reply_markup=None):
         pass
     await message.reply_text(text, reply_markup=reply_markup)
 
+def _get_cache():
+    try:
+        return get_cache()
+    except Exception:
+        return _cache_fallback
+
 @Client.on_message(filters.command("reload") & filters.group)
 @admin_only
 async def reload_admins(client: Client, message: Message):
     lang = await db.get_group_language(message.chat.id)
     try:
+        cache = _get_cache()
         try:
             await asyncio.to_thread(cache.clear_admins, message.chat.id)
         except TypeError:
@@ -80,6 +87,7 @@ async def toggle_autoclean(client: Client, message: Message):
     status = message.command[1].lower()
 
     try:
+        cache = _get_cache()
         if status == "on":
             await db.set_auto_clean(message.chat.id, True)
             try:
@@ -140,12 +148,9 @@ async def developer_info(client: Client, message: Message):
         logger.exception(e)
 
 @Client.on_message(filters.command("logadmin") & filters.group)
+@creator_only
 async def log_admin_activity(client: Client, message: Message):
     lang = await db.get_group_language(message.chat.id)
-
-    if not await is_creator(client, message.chat.id, message.from_user.id):
-        await _send(message, get_lang("creator_only", lang))
-        return
 
     try:
         logs = await db.get_admin_logs(message.chat.id, limit=20)
@@ -157,13 +162,13 @@ async def log_admin_activity(client: Client, message: Message):
         return
 
     parts = [get_lang("admin_logs_header", lang), ""]
-    for log in logs:
-        ts = datetime.datetime.fromtimestamp(log.get("timestamp", 0)).strftime("%Y-%m-%d %H:%M:%S")
+    for log_item in logs:
+        ts = datetime.datetime.fromtimestamp(log_item.get("timestamp", 0)).strftime("%Y-%m-%d %H:%M:%S")
         parts.append(f"⏰ {ts}")
-        parts.append(f"👤 Admin: `{log.get('admin_id', 'unknown')}`")
-        parts.append(f"📝 Action: {log.get('action', 'unknown')}")
-        if log.get("target_user"):
-            parts.append(f"🎯 Target: `{log.get('target_user')}`")
+        parts.append(f"👤 Admin: `{log_item.get('admin_id', 'unknown')}`")
+        parts.append(f"📝 Action: {log_item.get('action', 'unknown')}")
+        if log_item.get("target_user"):
+            parts.append(f"🎯 Target: `{log_item.get('target_user')}`")
         parts.append("─" * 20)
 
     text = "\n".join(parts)
