@@ -1,6 +1,6 @@
 import os
-from cachetools import TTLCache
 import logging
+from cachetools import TTLCache
 from typing import Any, Optional
 from config import CACHE_TTL
 from utils import logger as ulogger
@@ -22,17 +22,23 @@ class CacheManager:
             logger.info(f"Cache initialized with maxsize={maxsize}, ttl={ttl}s")
 
     async def load_from_db(self, db):
+        if db is None:
+            return
+        if not hasattr(db, "get_gban_list"):
+            return
         try:
             gban_users = await db.get_gban_list()
+            count = 0
             for user in gban_users:
                 uid = user.get("user_id") if isinstance(user, dict) else None
                 if uid is not None:
                     self.gban_cache[uid] = True
+                    count += 1
             try:
                 if ulogger.is_logging_enabled():
-                    logger.info(f"Loaded {len(gban_users)} gbanned users to cache")
+                    logger.info(f"Loaded {count} gbanned users to cache")
             except Exception:
-                logger.info(f"Loaded {len(gban_users)} gbanned users to cache")
+                logger.info(f"Loaded {count} gbanned users to cache")
         except Exception as e:
             logger.error(f"Error loading cache from DB: {e}")
 
@@ -91,14 +97,15 @@ class CacheManager:
         except Exception:
             logger.info("All caches cleared")
 
-async def init_cache(db, maxsize: int = 10000, ttl: int = CACHE_TTL):
+async def init_cache(db=None, maxsize: int = 10000, ttl: int = CACHE_TTL, load: bool = False):
     global cache_manager
     if cache_manager is None:
         cache_manager = CacheManager(maxsize=maxsize, ttl=ttl)
-        await cache_manager.load_from_db(db)
+        if load:
+            await cache_manager.load_from_db(db)
     return cache_manager
 
 def get_cache() -> CacheManager:
     if cache_manager is None:
-        raise RuntimeError("Cache not initialized. Call await init_cache(db) from startup.")
+        raise RuntimeError("Cache not initialized. Call await init_cache(db, load=False) from startup.")
     return cache_manager
