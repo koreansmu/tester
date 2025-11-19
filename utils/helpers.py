@@ -130,6 +130,21 @@ async def get_group_lang(chat_id: int) -> str:
         pass
     return lang
 
+async def is_admin(client, chat_id, user_id):
+    try:
+        member = await client.get_chat_member(chat_id, user_id)
+        return member.status in ["creator", "administrator"]
+    except:
+        return False
+
+async def is_creator(client, chat_id, user_id):
+    try:
+        member = await client.get_chat_member(chat_id, user_id)
+        return member.status == "creator"
+    except:
+        return False
+
+
 def _find_slang_file():
     base_dir = os.path.dirname(__file__)
     candidates = [
