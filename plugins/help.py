@@ -29,10 +29,7 @@ def get_help_keyboard():
 
 @Client.on_message(filters.command("help"))
 async def help_command(client: Client, message: Message):
-    try:
-        cache = get_cache()
-    except Exception:
-        cache = None
+    cache = get_cache() if get_cache else None
 
     if message.chat.type in ("group", "supergroup"):
         lang = await asyncio.to_thread(lambda: cache.get_setting(message.chat.id, "language")) if cache else None
@@ -45,15 +42,12 @@ async def help_command(client: Client, message: Message):
     await message.reply_text(
         txt,
         reply_markup=get_help_keyboard(),
-        link_preview=LinkPreviewOptions(is_disabled=True)
+        link_preview_options=LinkPreviewOptions(is_disabled=True)
     )
 
 @Client.on_callback_query(filters.regex("^help_"))
 async def help_callback(client: Client, callback: CallbackQuery):
-    try:
-        cache = get_cache()
-    except Exception:
-        cache = None
+    cache = get_cache() if get_cache else None
 
     if callback.message and callback.message.chat.type in ("group", "supergroup"):
         lang = await asyncio.to_thread(lambda: cache.get_setting(callback.message.chat.id, "language")) if cache else None
@@ -91,12 +85,9 @@ async def help_callback(client: Client, callback: CallbackQuery):
         await callback.answer()
         return
 
-    try:
-        await callback.message.edit_text(
-            txt,
-            reply_markup=kb,
-            link_preview=LinkPreviewOptions(is_disabled=True)
-        )
-        await callback.answer()
-    except Exception:
-        await callback.answer("No changes.", show_alert=False)
+    await callback.message.edit_text(
+        txt,
+        reply_markup=kb,
+        link_preview_options=LinkPreviewOptions(is_disabled=True)
+    )
+    await callback.answer()
