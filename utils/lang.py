@@ -2,14 +2,16 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 import asyncio
 import logging
-from utils.helpers import get_lang
+from utils.helpers import get_lang, _get_group_lang if False else None  # keep lint happy
 from utils.cache import get_cache, init_cache
+from utils.decorators import admin_only
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger("bot.lang")
+log.setLevel(logging.DEBUG)
 
 LANGUAGES = {
-    "en": "English",
-    "hi": "हिंदी"
+    "en": "🇬🇧 English",
+    "hi": "🇮🇳 हिंदी"
 }
 
 def get_language_keyboard(current_lang: str = "en"):
@@ -31,9 +33,9 @@ async def _ensure_cache():
                 cache = await init_cache(db=db, use_db_once=False)
                 return cache
             except Exception as e:
-                logger.warning("init_cache failed: %s. Falling back to in-memory cache.", e)
+                log.warning("init_cache failed: %s. Falling back to in-memory cache.", e)
         except Exception as e:
-            logger.warning("Could not import Database for cache init: %s", e)
+            log.warning("Could not import Database for cache init: %s", e)
         class _FallbackCache:
             def get_setting(self, key, setting=None):
                 return None
@@ -81,30 +83,80 @@ async def _get_group_lang(chat_id: int) -> str:
         pass
     return lang
 
-@Client.on_message(filters.command("lang"))
-async def change_language_command(client: Client, message: Message):
-    logger.debug("Received /lang from %s in chat %s", getattr(message.from_user, "id", None), getattr(message.chat, "id", None))
-    chat = getattr(message, "chat", None)
-    if chat is None or chat.type == "private":
-        current_lang = await _get_user_lang(message.from_user.id)
-        text = get_lang("lang_select_user", current_lang)
-        keyboard = get_language_keyboard(current_lang)
-        await message.reply_text(text, reply_markup=keyboard)
-        return
-    member = await client.get_chat_member(message.chat.id, message.from_user.id)
-    status = (getattr(member, "status", "") or "").lower()
-    if status not in ("creator", "administrator"):
-        lang = await _get_group_lang(message.chat.id)
-        await message.reply_text(get_lang("admin_only", lang))
-        return
+@Client.on_message(filters.command("pinglang") & filters.private)
+async def _pinglang(client: Client, message: Message):
+    await message.reply_text("lang plugin active")
+
+@Client.on_message(filters.command("lang") & filters.private)
+async def change_language_private(client: Client, message: Message):
+    log.debug("change_language_private called: from=%s chat=%s", getattr(message.from_user, "id", None), getattr(message.chat, "id", None))
+    current_lang = await _get_user_lang(message.from_user.id)
+    text = get_lang("lang_select_user", current_lang)
+    keyboard = get_language_keyboard(current_lang)
+    await message.reply_text(text, reply_markup=keyboard)
+
+@Client.on_message(filters.command("lang") & ~filters.private)
+@admin_only
+async def change_language_group_admin(client: Client, message: Message):
+    log.debug("change_language_group_admin called by admin: %s in %s", getattr(message.from_user, "id", None), getattr(message.chat, "id", None))
     current_lang = await _get_group_lang(message.chat.id)
     text = get_lang("lang_select_group", current_lang)
     keyboard = get_language_keyboard(current_lang)
     await message.reply_text(text, reply_markup=keyboard)
 
+@Client.on_message(filters.command("lang") & ~filters.private)
+async def change_language_group_nonadmin(client: Client, message: Message):
+    try:
+        member = await client.get_chat_member(message.chat.id, message.from_user.id)
+    except Exception as e:
+        log.warning("get_chat_member failed in change_language_group_nonadmin: %s", e)
+        lang = await _get_group_lang(message.chat.id)
+        await message.reply_text(get_lang("admin_only", lang))
+        return
+    status = (getattr(member, "status", "") or "").lower()
+    if status in ("creator", "administrator"):
+        return
+    lang = await _get_group_lang(message.chat.id)
+    await message.reply_text(get_lang("admin_only", lang))
+
+@Client.on_callback_query(filters.regex("^lang_menu$"))
+async def open_language_menu(client: Client, callback: CallbackQuery):
+    msg = callback.message
+    chat = getattr(msg, "chat", None)
+    if chat is None or chat.type == "private":
+        current_lang = await _get_user_lang(callback.from_user.id)
+        text = get_lang("lang_select_user", current_lang)
+        keyboard = get_language_keyboard(current_lang)
+        try:
+            await callback.message.reply_text(text, reply_markup=keyboard)
+        except Exception:
+            await callback.message.edit_text(text, reply_markup=keyboard)
+        await callback.answer()
+        return
+    try:
+        member = await client.get_chat_member(msg.chat.id, callback.from_user.id)
+    except Exception as e:
+        log.warning("get_chat_member failed in open_language_menu: %s", e)
+        lang = await _get_group_lang(msg.chat.id)
+        await callback.answer(get_lang("admin_only", lang), show_alert=True)
+        return
+    status = (getattr(member, "status", "") or "").lower()
+    if status not in ("creator", "administrator"):
+        lang = await _get_group_lang(msg.chat.id)
+        await callback.answer(get_lang("admin_only", lang), show_alert=True)
+        return
+    current_lang = await _get_group_lang(msg.chat.id)
+    text = get_lang("lang_select_group", current_lang)
+    keyboard = get_language_keyboard(current_lang)
+    try:
+        await callback.message.reply_text(text, reply_markup=keyboard)
+    except Exception:
+        await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
 @Client.on_callback_query(filters.regex("^lang_"))
 async def language_callback(client: Client, callback: CallbackQuery):
-    logger.debug("language_callback data=%s from=%s", callback.data, getattr(callback.from_user, "id", None))
+    log.debug("language_callback called: data=%s from=%s", callback.data, getattr(callback.from_user, "id", None))
     parts = callback.data.split("_", 1)
     if len(parts) < 2:
         await callback.answer()
@@ -146,7 +198,12 @@ async def language_callback(client: Client, callback: CallbackQuery):
             await callback.message.reply_text(text, reply_markup=keyboard)
             await callback.answer("Language updated!")
         return
-    member = await client.get_chat_member(msg.chat.id, callback.from_user.id)
+    try:
+        member = await client.get_chat_member(msg.chat.id, callback.from_user.id)
+    except Exception as e:
+        log.warning("get_chat_member failed in language_callback: %s", e)
+        await callback.answer("Could not verify admin status", show_alert=True)
+        return
     status = (getattr(member, "status", "") or "").lower()
     if status not in ("creator", "administrator"):
         await callback.answer("You need to be an admin!", show_alert=True)
