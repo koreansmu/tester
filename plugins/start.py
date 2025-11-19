@@ -1,5 +1,10 @@
 from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import (
+    Message,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    LinkPreviewOptions
+)
 import asyncio
 from utils.helpers import get_lang
 from utils.cache import get_cache
@@ -48,6 +53,7 @@ async def start_command(client: Client, message: Message):
 
     add_me_url = f"https://t.me/{BOT_USERNAME.lstrip('@')}?startgroup=true"
     news_url = _normalize_channel_url(SUPPORT_CHANNEL)
+
     rows = [
         [InlineKeyboardButton("➕ ᴀᴅᴅ ᴍᴇ", url=add_me_url)],
         [
@@ -55,12 +61,18 @@ async def start_command(client: Client, message: Message):
             InlineKeyboardButton("❓ ʜᴇʟᴘ", callback_data="help_menu"),
         ],
     ]
+
     if news_url:
         rows[1].insert(0, InlineKeyboardButton("📢 ʙᴏᴛ ɴᴇᴡs", url=news_url))
 
     kb = InlineKeyboardMarkup(rows)
     txt = get_lang("start_message", lang, mention=user.mention)
-    await message.reply_text(txt, reply_markup=kb, link_preview_options={"disable_web_page_preview": True})
+
+    await message.reply_text(
+        txt,
+        reply_markup=kb,
+        link_preview=LinkPreviewOptions(is_disabled=True)
+    )
 
 @Client.on_message(filters.command("start") & filters.group)
 async def start_group(client: Client, message: Message):
@@ -96,5 +108,11 @@ async def start_group(client: Client, message: Message):
             [InlineKeyboardButton("🌐 ʟᴀɴɢᴜᴀɢᴇ", callback_data="lang_menu")],
         ]
     )
+
     txt = get_lang("group_start", lang)
-    await message.reply_text(txt, reply_markup=kb, link_preview_options={"disable_web_page_preview": True})
+
+    await message.reply_text(
+        txt,
+        reply_markup=kb,
+        link_preview=LinkPreviewOptions(is_disabled=True)
+    )
