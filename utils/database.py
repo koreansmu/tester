@@ -1,13 +1,47 @@
 import logging
-import asyncio
+import time
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
 from config import MONGO_URI
+from utils import logger as ulogger
 
 logger = logging.getLogger(__name__)
 
 class Database:
     def __init__(self):
+        # Do not start async work here.
+        # Respect global logging toggle (silence noisy libs if logging is off)
+        try:
+            if not ulogger.is_logging_enabled():
+                logging.getLogger("motor").setLevel(logging.CRITICAL)
+                logging.getLogger("pymongo").setLevel(logging.CRITICAL)
+                logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+                logging.getLogger("asyncio").setLevel(logging.CRITICAL)
+        except Exception:
+            # ignore any errors while setting log levels
+            pass
+
+        self.client = None
+        self.db = None
+
+        # placeholders — will be assigned in connect()
+        self.active_groups = None
+        self.users = None
+        self.groups_stats = None
+        self.media_settings = None
+        self.edit_settings = None
+        self.slang_settings = None
+        self.pretender_settings = None
+        self.edit_auth = None
+        self.media_auth = None
+        self.slang_auth = None
+        self.gban_users = None
+        self.admin_logs = None
+        self.group_languages = None
+        self.overall_stats = None
+
+    async def connect(self):
+        """Initialize AsyncIOMotorClient and collections. Call once at startup: await db.connect()"""
         self.client = AsyncIOMotorClient(MONGO_URI)
         self.db = self.client["billa_guardian"]
 
@@ -26,7 +60,8 @@ class Database:
         self.group_languages = self.db["group_languages"]
         self.overall_stats = self.db["overall_stats"]
 
-        asyncio.create_task(self._create_indexes())
+        # ensure indexes exist
+        await self._create_indexes()
 
     async def _create_indexes(self):
         try:
@@ -49,7 +84,7 @@ class Database:
                 upsert=True
             )
         except Exception as e:
-            logger.warning(e)
+            logger.warning("Error creating indexes: %s", e)
 
     async def add_active_group(self, chat_id: int, chat_title: str):
         try:
@@ -58,7 +93,7 @@ class Database:
                 {"$set": {"chat_id": chat_id, "title": chat_title}},
                 upsert=True,
             )
-            if res.upserted_id:
+            if getattr(res, "upserted_id", None):
                 await self.overall_stats.update_one(
                     {"_id": "global"},
                     {"$inc": {"total_groups": 1}},
@@ -69,7 +104,7 @@ class Database:
 
     async def remove_active_group(self, chat_id: int):
         res = await self.active_groups.delete_one({"chat_id": chat_id})
-        if res.deleted_count > 0:
+        if getattr(res, "deleted_count", 0) > 0:
             await self.overall_stats.update_one(
                 {"_id": "global"},
                 {"$inc": {"total_groups": -1}},
@@ -86,7 +121,7 @@ class Database:
                 {"$set": {"user_id": user_id, "username": username, "first_name": first_name}},
                 upsert=True,
             )
-            if res.upserted_id:
+            if getattr(res, "upserted_id", None):
                 await self.overall_stats.update_one(
                     {"_id": "global"},
                     {"$inc": {"total_users": 1}},
@@ -216,7 +251,7 @@ class Database:
                     "user_id": user_id,
                     "reason": reason,
                     "duration": duration,
-                    "timestamp": asyncio.get_event_loop().time()
+                    "timestamp": time.time()
                 }},
                 upsert=True,
             )
@@ -231,7 +266,6 @@ class Database:
         if not result:
             return False
         if result.get("duration"):
-            import time
             elapsed = time.time() - result.get("timestamp", 0)
             if elapsed > result.get("duration") * 60:
                 await self.remove_gban(user_id)
@@ -253,7 +287,6 @@ class Database:
         return result.get("language", "en") if result else "en"
 
     async def log_admin_action(self, chat_id: int, admin_id: int, action: str, target_user=None):
-        import time
         await self.admin_logs.insert_one({
             "chat_id": chat_id,
             "admin_id": admin_id,
