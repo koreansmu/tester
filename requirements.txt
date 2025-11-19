@@ -9,6 +9,8 @@ pillow
 requests
 cachetools
 dnspython
-transformers
+Transformers
+TensorFlow
+Pytorch
 torch
 ffmpeg-python
