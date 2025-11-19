@@ -1,8 +1,10 @@
+import os
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, DuplicateKeyError
 import logging
 import asyncio
 from config import MONGO_URI
+
 
 logger = logging.getLogger(__name__)
 
