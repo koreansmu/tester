@@ -1,7 +1,6 @@
 import json
 import os
 import logging
-from typing import Set
 from config import DEFAULT_LANG
 
 logger = logging.getLogger(__name__)
@@ -10,7 +9,6 @@ class LanguageManager:
     def __init__(self):
         self.languages = {}
         self.load_languages()
-    
     def _find_strings_dir(self):
         base_dir = os.path.dirname(__file__)
         candidates = [
@@ -22,7 +20,6 @@ class LanguageManager:
             if os.path.isdir(p):
                 return p
         return None
-
     def load_languages(self):
         strings_dir = self._find_strings_dir()
         try:
@@ -37,7 +34,6 @@ class LanguageManager:
             logger.info(f"Loaded {len(self.languages)} language files from {strings_dir}")
         except Exception as e:
             logger.error(f"Error loading languages: {e}")
-    
     def get_string(self, key, lang=DEFAULT_LANG, **kwargs):
         try:
             if lang not in self.languages:
@@ -80,7 +76,7 @@ def _find_slang_file():
             return p
     return candidates[1]
 
-def load_slang_words() -> Set[str]:
+def load_slang_words():
     slang_variants = set()
     slang_file = _find_slang_file()
     try:
