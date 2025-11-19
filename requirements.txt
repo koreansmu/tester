@@ -1,0 +1,11 @@
+pyrotgfork==2.2.16
+pymongo
+python-dotenv
+aiofiles
+pillow
+requests
+cachetools
+dnspython
+transformers
+torch
+ffmpeg-python
