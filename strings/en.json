@@ -1,6 +1,6 @@
 {
-  "active_groups_header": "📊 **Active Groups ({count}):**",
-  "admin_logs_header": "📋 **Recent Admin Actions:**",
+  "active_groups_header": "📊 Active Groups ({count}):",
+  "admin_logs_header": "📋 Recent Admin Actions:",
   "admin_only": "🛑 Only admins can change group language!",
   "admin_group_only":"🛑 This command is for group admins only!",
   "admin_restart_reply": "🔁 Restarting the Guard-x...",
@@ -21,7 +21,7 @@
   "bcast_usage": "🛑 Usage: `/bcast <message>` or reply to a message with `/bcast`",
   "creator_only": "🛑 This command is for group creator only!",
   "developer_info": "🍁 **ᴅᴇᴠᴇʟᴏᴘᴇʀ ɪɴғᴏ**\n\nᴀʟʟ ᴛʜᴇ ғᴇᴀᴛᴜʀᴇs ᴏғ ᴍɪɴᴇ ʙʟᴏssᴏᴍs & ᴇᴀsᴇ ᴏғ ᴀᴄᴄᴇss ʏᴏᴜ ᴀʀᴇ ᴇɴᴊᴏʏɪɴɢ ʜᴀssʟᴇ-ғʀᴇᴇ ᴅᴜᴇ ᴛᴏ ᴍʏ ᴄʀᴇᴀᴛᴏʀ 🍁",
-  "eauthlist_header": "Edit Message Authorized users:"
+  "eauthlist_header": "Edit Message Authorized users:",
   "eauth_success": "✅ User authorized to edit messages!",
   "eauth_usage": "🛑 Reply to a user or provide user ID.\nUsage: `/eauth` or `/eauth <user_id>`",
   "edelay_success": "Edit delay set to {delay} minute(s).",
@@ -55,7 +55,7 @@
   "logger_usage": "🛑 Usage: `/logger on` or `/logger off`",
   "mauth_success": "✅ User authorized to send media!",
   "mauth_usage": "🛑 Reply to a user or provide user ID.\nUsage: `/mauth` or `/mauth <user_id>`",
-  "mauthlist_header": "📸 **Media Authorized Users:**",
+  "mauthlist_header": "📸 Media Authorized Users:",
   "media_warning": "⚠️ {user} sent media that will be deleted in {delay} minutes.",
   "munauth_success": "✅ Media authorization removed!",
   "munauth_usage": "🛑 Reply to a user or provide user ID.\nUsage: `/munauth` or `/munauth <user_id>`",
