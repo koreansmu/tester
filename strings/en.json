@@ -32,7 +32,6 @@
   "group_start": "✅ ɢᴜᴀʀᴅ-x ɪs ɴᴏᴡ ᴀᴄᴛɪᴠᴇ!\n\nᴍᴀᴋᴇ ᴍᴇ ᴀɴ ᴀᴅᴍɪɴ ᴛᴏ ᴇɴᴀʙʟᴇ ᴀʟʟ ғᴇᴀᴛᴜʀᴇs.\nᴜsᴇ /help ᴛᴏ sᴇᴇ ᴀᴠᴀɪʟᴀʙʟᴇ ᴄᴏᴍᴍᴀɴᴅs.",
   "help_admin_cmds": "•─ ᴀᴅᴍɪɴ ᴄᴏᴍᴍᴀɴᴅs ─•\n\n🔸 /atag - ᴛᴀɢ ᴀʟʟ ᴀᴅᴍɪɴs\n🔸 /utag - ᴛᴀɢ ᴀʟʟ ᴜsᴇʀs\n🔸 /stop - sᴛᴏᴘ ᴛᴀɢɢɪɴɢ\n🔸 /autoclean on/off - ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇ 24ʜ ᴏʟᴅ ᴍsɢs\n🔸 /reload - ʀᴇʟᴏᴀᴅ ᴀᴅᴍɪɴ ʟɪsᴛ\n🔸 /stats - ʙᴏᴛ sᴛᴀᴛɪsᴛɪᴄs\n🔸 /logadmin - ᴠɪᴇᴡ ᴀᴅᴍɪɴ ʟᴏɢs",
   "help_edit_guard": "•─ ᴇᴅɪᴛ ɢᴜᴀʀᴅ ᴄᴏᴍᴍᴀɴᴅs ─•\n\n🔸 /edelay <time_in_minutes> - sᴇᴛ ᴇᴅɪᴛ ᴍᴇssᴀɢᴇ ᴅᴇʟᴇᴛɪᴏɴ ᴅᴇʟᴀʏ\n🔸 /auth or /eauth - ᴀᴜᴛʜᴏʀɪᴢᴇ ᴜsᴇʀ ᴛᴏ ᴇᴅɪᴛ\n🔸 /unauth or /eunauth - ʀᴇᴍᴏᴠᴇ ᴇᴅɪᴛ ᴀᴜᴛʜᴏʀɪᴢᴀᴛɪᴏɴ\n🔸 /authlist or /eauthlist - ʟɪsᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs",
-  "help,",
   "help_main": "•─ ɢᴜᴀʀᴅ-x ʜᴇʟᴘ ᴍᴇɴᴜ ─•\n\nᴄʟɪᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ɢᴇᴛ ɪɴғᴏ ᴀʙᴏᴜᴛ ᴇᴀᴄʜ ᴍᴏᴅᴜʟᴇ:",
   "help_media_guard": "•─ ᴍᴇᴅɪᴀ ɢᴜᴀʀᴅ ᴄᴏᴍᴍᴀɴᴅs ─•\n\n🔸 /setdelay <time_in_minutes> - sᴇᴛ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇ ᴛɪᴍᴇʀ ғᴏʀ ᴍᴇᴅɪᴀ\n🔸 /getdelay - ᴄʜᴇᴄᴋ ᴍᴇᴅɪᴀ ɢᴜᴀʀᴅ sᴛᴀᴛᴜs\n🔸 /mauth - ᴀᴜᴛʜᴏʀɪᴢᴇ ᴜsᴇʀ ғᴏʀ ᴍᴇᴅɪᴀ\n🔸 /munauth - ʀᴇᴍᴏᴠᴇ ᴍᴇᴅɪᴀ ᴀᴜᴛʜᴏʀɪᴢᴀᴛɪᴏɴ\n🔸 /mauthlist - ʟɪsᴛ ᴀᴜᴛʜᴏʀɪᴢᴇᴅ ᴜsᴇʀs",
   "help_owner_cmds": "•─ ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅs ─•\n\n🔸 /activegc or /ac - sʜᴏᴡ ᴀᴄᴛɪᴠᴇ ɢʀᴏᴜᴘs\n🔸 /bcast - ʙʀᴏᴀᴅᴄᴀsᴛ ᴛᴏ ᴀʟʟ\n🔸 /bcast -users - ʙʀᴏᴀᴅᴄᴀsᴛ ᴛᴏ ᴜsᴇʀs\n🔸 /bcast -groups - ʙʀᴏᴀᴅᴄᴀsᴛ ᴛᴏ ɢʀᴏᴜᴘs\n🔸 /gban - ɢʟᴏʙᴀʟʟʏ ʙᴀɴ ᴜsᴇʀ\n🔸 /ungban - ʀᴇᴍᴏᴠᴇ ɢʟᴏʙᴀʟ ʙᴀɴ\n🔸 /tgban - ᴛᴇᴍᴘᴏʀᴀʀʏ ɢʙᴀɴ\n🔸 /gbanlist - ʟɪsᴛ ɢʙᴀɴɴᴇᴅ ᴜsᴇʀs",
