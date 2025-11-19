@@ -3,7 +3,7 @@ from pyrogram.types import Message, LinkPreviewOptions
 from pyrogram.enums import ChatMembersFilter
 import asyncio
 from utils.decorators import admin_only, creator_only
-from utils.helpers import get_lang, is_creator
+from utils.helpers import get_lang
 from utils.database import Database
 from utils.cache import CacheManager, get_cache
 from config import SUDO_USERS
