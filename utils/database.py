@@ -9,8 +9,6 @@ logger = logging.getLogger(__name__)
 
 class Database:
     def __init__(self):
-        # Do not start async work here.
-        # Respect global logging toggle (silence noisy libs if logging is off)
         try:
             if not ulogger.is_logging_enabled():
                 logging.getLogger("motor").setLevel(logging.CRITICAL)
@@ -18,13 +16,10 @@ class Database:
                 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
                 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
         except Exception:
-            # ignore any errors while setting log levels
             pass
 
         self.client = None
         self.db = None
-
-        # placeholders — will be assigned in connect()
         self.active_groups = None
         self.users = None
         self.groups_stats = None
@@ -41,10 +36,8 @@ class Database:
         self.overall_stats = None
 
     async def connect(self):
-        """Initialize AsyncIOMotorClient and collections. Call once at startup: await db.connect()"""
         self.client = AsyncIOMotorClient(MONGO_URI)
         self.db = self.client["billa_guardian"]
-
         self.active_groups = self.db["active_groups"]
         self.users = self.db["users"]
         self.groups_stats = self.db["groups_stats"]
@@ -59,8 +52,6 @@ class Database:
         self.admin_logs = self.db["admin_logs"]
         self.group_languages = self.db["group_languages"]
         self.overall_stats = self.db["overall_stats"]
-
-        # ensure indexes exist
         await self._create_indexes()
 
     async def _create_indexes(self):
@@ -77,11 +68,11 @@ class Database:
             await self.media_auth.create_index([("chat_id", 1), ("user_id", 1)], unique=True)
             await self.slang_auth.create_index([("chat_id", 1), ("user_id", 1)], unique=True)
             await self.group_languages.create_index("chat_id", unique=True)
-            await self.overall_stats.create_index("_id", unique=True)
+            # Do not create a unique index on _id (MongoDB already enforces _id uniqueness)
             await self.overall_stats.update_one(
                 {"_id": "global"},
                 {"$setOnInsert": {"total_groups": 0, "total_users": 0}},
-                upsert=True
+                upsert=True,
             )
         except Exception as e:
             logger.warning("Error creating indexes: %s", e)
@@ -304,7 +295,6 @@ class Database:
         edit_enabled = await self.edit_settings.count_documents({"enabled": True})
         media_enabled = await self.media_settings.count_documents({"enabled": True})
         slang_enabled = await self.slang_settings.count_documents({"enabled": True})
-
         return {
             "total_groups": int(global_doc.get("total_groups", 0)),
             "total_users": int(global_doc.get("total_users", 0)),
