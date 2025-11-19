@@ -3,14 +3,15 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 import asyncio
 import logging
 import time
+
 from utils.decorators import admin_only
-from utils.helpers import get_lang
+from utils.helpers import get_lang, is_admin
 from utils.database import Database
-from utils.cache import CacheManager, get_cache
+from utils.cache import CacheManager
 from config import SUPPORT_CHAT, LOGGER_ID
 
 db = Database()
-_cache_fallback = CacheManager()
+cache = CacheManager()
 logger = logging.getLogger(__name__)
 
 _warned_users = {}
@@ -22,11 +23,6 @@ RATE_WINDOW = 10
 RATE_THRESHOLD = 6
 BOT_PERMS_CACHE_TTL = 300
 
-def _get_cache():
-    try:
-        return get_cache()
-    except Exception:
-        return _cache_fallback
 
 async def _get_bot_perms(client: Client, chat_id: int) -> tuple[bool, bool]:
     now = time.time()
@@ -53,6 +49,7 @@ async def _get_bot_perms(client: Client, chat_id: int) -> tuple[bool, bool]:
         _bot_perms_cache[chat_id] = (False, False, now + BOT_PERMS_CACHE_TTL)
         return False, False
 
+
 def _record_edit_event(chat_id: int) -> int:
     now = time.time()
     events = _edit_events.setdefault(chat_id, [])
@@ -61,6 +58,7 @@ def _record_edit_event(chat_id: int) -> int:
     while events and events[0] < cutoff:
         events.pop(0)
     return len(events)
+
 
 def _was_warned_recently(chat_id: int, user_id: int) -> bool:
     ts = _warned_users.get((chat_id, user_id))
@@ -71,8 +69,10 @@ def _was_warned_recently(chat_id: int, user_id: int) -> bool:
     _warned_users.pop((chat_id, user_id), None)
     return False
 
+
 def _mark_warned(chat_id: int, user_id: int) -> None:
     _warned_users[(chat_id, user_id)] = time.time()
+
 
 @Client.on_message(filters.command("edelay") & filters.group)
 @admin_only
@@ -87,13 +87,7 @@ async def set_edit_delay(client: Client, message: Message):
             await message.reply_text(get_lang("invalid_delay", lang))
             return
         await db.set_edit_delay(message.chat.id, delay)
-        cache = _get_cache()
-        try:
-            await asyncio.to_thread(cache.set_setting, message.chat.id, "edit_delay", delay)
-        except TypeError:
-            maybe = cache.set_setting(message.chat.id, "edit_delay", delay)
-            if asyncio.iscoroutine(maybe):
-                await maybe
+        cache.set_setting(message.chat.id, "edit_delay", delay)
         if LOGGER_ID:
             try:
                 admin_name = message.from_user.first_name or str(message.from_user.id)
@@ -113,6 +107,7 @@ async def set_edit_delay(client: Client, message: Message):
     except Exception:
         await message.reply_text(get_lang("error_occurred", lang))
 
+
 @Client.on_edited_message(filters.group)
 async def handle_edited_message(client: Client, message: Message):
     try:
@@ -120,50 +115,22 @@ async def handle_edited_message(client: Client, message: Message):
         user = message.from_user
         if not user:
             return
-        cache = _get_cache()
-        delay = None
-        try:
-            delay = cache.get_setting(chat_id, "edit_delay")
-        except Exception:
-            delay = None
+        delay = cache.get_setting(chat_id, "edit_delay")
         if delay is None:
             delay = await db.get_edit_delay(chat_id)
             if delay is not None:
-                try:
-                    await asyncio.to_thread(cache.set_setting, chat_id, "edit_delay", delay)
-                except TypeError:
-                    maybe = cache.set_setting(chat_id, "edit_delay", delay)
-                    if asyncio.iscoroutine(maybe):
-                        await maybe
+                cache.set_setting(chat_id, "edit_delay", delay)
         if not delay:
             return
         can_send, can_delete = await _get_bot_perms(client, chat_id)
         if not can_send:
             return
-        user_is_admin = False
-        try:
-            member = await client.get_chat_member(chat_id, user.id)
-            status = (getattr(member, "status", "") or "").lower()
-            user_is_admin = status in ("creator", "administrator")
-        except Exception:
-            user_is_admin = False
+        user_is_admin = await is_admin(client, chat_id, user.id)
         if user_is_admin:
-            is_auth = None
-            try:
-                is_auth = cache.get_auth(chat_id, user.id, "edit")
-            except Exception:
-                is_auth = None
+            is_auth = cache.get_auth(chat_id, user.id, "edit")
             if is_auth is None:
-                try:
-                    is_auth = await db.is_edit_authorized(chat_id, user.id)
-                except Exception:
-                    is_auth = False
-                try:
-                    await asyncio.to_thread(cache.set_auth, chat_id, user.id, "edit", is_auth)
-                except TypeError:
-                    maybe = cache.set_auth(chat_id, user.id, "edit", is_auth)
-                    if asyncio.iscoroutine(maybe):
-                        await maybe
+                is_auth = await db.is_edit_authorized(chat_id, user.id)
+                cache.set_auth(chat_id, user.id, "edit", is_auth)
             if is_auth:
                 return
         recent = _record_edit_event(chat_id)
@@ -172,7 +139,7 @@ async def handle_edited_message(client: Client, message: Message):
         if _was_warned_recently(chat_id, user.id):
             return
         lang = await db.get_group_language(chat_id)
-        username = f"@{user.username}" if user.username else (user.first_name or str(user.id))
+        username = f"@{user.username}" if user.username else user.first_name
         warning_text = get_lang("edit_warning", lang, user=username, delay=delay)
         keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🚨 ʀᴇᴘᴏʀᴛ sᴘᴀᴍ ?", url=SUPPORT_CHAT)]])
         try:
@@ -187,30 +154,11 @@ async def handle_edited_message(client: Client, message: Message):
         async def _delayed_delete(msg, warn, chat, uid, del_ok, mins):
             await asyncio.sleep(mins * 60)
             try:
-                is_admin_now = False
-                try:
-                    member = await client.get_chat_member(chat, uid)
-                    status = (getattr(member, "status", "") or "").lower()
-                    is_admin_now = status in ("creator", "administrator")
-                except Exception:
-                    is_admin_now = False
-                if is_admin_now:
-                    is_auth = None
-                    try:
-                        is_auth = cache.get_auth(chat, uid, "edit")
-                    except Exception:
-                        is_auth = None
+                if await is_admin(client, chat, uid):
+                    is_auth = cache.get_auth(chat, uid, "edit")
                     if is_auth is None:
-                        try:
-                            is_auth = await db.is_edit_authorized(chat, uid)
-                        except Exception:
-                            is_auth = False
-                        try:
-                            await asyncio.to_thread(cache.set_auth, chat, uid, "edit", is_auth)
-                        except TypeError:
-                            maybe = cache.set_auth(chat, uid, "edit", is_auth)
-                            if asyncio.iscoroutine(maybe):
-                                await maybe
+                        is_auth = await db.is_edit_authorized(chat, uid)
+                        cache.set_auth(chat, uid, "edit", is_auth)
                     if is_auth:
                         if warn and del_ok:
                             try:
@@ -235,6 +183,7 @@ async def handle_edited_message(client: Client, message: Message):
     except Exception:
         pass
 
+
 @Client.on_message(filters.command(["auth", "eauth"]) & filters.group)
 @admin_only
 async def edit_auth(client: Client, message: Message):
@@ -251,18 +200,13 @@ async def edit_auth(client: Client, message: Message):
         await message.reply_text(get_lang("eauth_usage", lang))
         return
     await db.add_edit_auth(message.chat.id, user_id)
-    cache = _get_cache()
-    try:
-        await asyncio.to_thread(cache.set_auth, message.chat.id, user_id, "edit", True)
-    except TypeError:
-        maybe = cache.set_auth(message.chat.id, user_id, "edit", True)
-        if asyncio.iscoroutine(maybe):
-            await maybe
+    cache.set_auth(message.chat.id, user_id, "edit", True)
     try:
         await db.log_admin_action(message.chat.id, message.from_user.id, "edit_auth", user_id)
     except Exception:
         pass
     await message.reply_text(get_lang("eauth_success", lang))
+
 
 @Client.on_message(filters.command(["unauth", "eunauth"]) & filters.group)
 @admin_only
@@ -280,14 +224,9 @@ async def edit_unauth(client: Client, message: Message):
         await message.reply_text(get_lang("eunauth_usage", lang))
         return
     await db.remove_edit_auth(message.chat.id, user_id)
-    cache = _get_cache()
-    try:
-        await asyncio.to_thread(cache.set_auth, message.chat.id, user_id, "edit", False)
-    except TypeError:
-        maybe = cache.set_auth(message.chat.id, user_id, "edit", False)
-        if asyncio.iscoroutine(maybe):
-            await maybe
+    cache.set_auth(message.chat.id, user_id, "edit", False)
     await message.reply_text(get_lang("eunauth_success", lang))
+
 
 @Client.on_message(filters.command(["authlist", "eauthlist"]) & filters.group)
 async def edit_auth_list(client: Client, message: Message):
