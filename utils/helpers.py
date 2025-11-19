@@ -11,24 +11,34 @@ class LanguageManager:
         self.languages = {}
         self.load_languages()
     
-    def load_languages(self):
-        # load from package-relative 'strings' directory
+    def _find_strings_dir(self):
         base_dir = os.path.dirname(__file__)
-        strings_dir = os.path.join(base_dir, "strings")
+        candidates = [
+            os.path.join(base_dir, "strings"),
+            os.path.abspath(os.path.join(base_dir, "..", "strings")),
+            os.path.join(os.getcwd(), "strings")
+        ]
+        for p in candidates:
+            if os.path.isdir(p):
+                return p
+        return None
+
+    def load_languages(self):
+        strings_dir = self._find_strings_dir()
         try:
-            if not os.path.isdir(strings_dir):
-                logger.warning(f"strings directory not found at {strings_dir}")
+            if not strings_dir:
+                logger.warning("strings directory not found")
                 return
             for file in os.listdir(strings_dir):
                 if file.endswith(".json"):
                     lang_code = file.replace(".json", "")
-                    with open(os.path.join(strings_dir, file), 'r', encoding='utf-8') as f:
+                    with open(os.path.join(strings_dir, file), "r", encoding="utf-8") as f:
                         self.languages[lang_code] = json.load(f)
-            logger.info(f"Loaded {len(self.languages)} language files")
+            logger.info(f"Loaded {len(self.languages)} language files from {strings_dir}")
         except Exception as e:
             logger.error(f"Error loading languages: {e}")
     
-    def get_string(self, key: str, lang: str = DEFAULT_LANG, **kwargs) -> str:
+    def get_string(self, key, lang=DEFAULT_LANG, **kwargs):
         try:
             if lang not in self.languages:
                 lang = DEFAULT_LANG
@@ -36,42 +46,51 @@ class LanguageManager:
             if kwargs:
                 text = text.format(**kwargs)
             return text
-        except Exception as e:
-            logger.error(f"Error getting string {key}: {e}")
+        except Exception:
             return key
 
 lang_manager = LanguageManager()
 
-def get_lang(key: str, lang: str = DEFAULT_LANG, **kwargs) -> str:
+def get_lang(key, lang=DEFAULT_LANG, **kwargs):
     return lang_manager.get_string(key, lang, **kwargs)
 
-async def is_admin(client, chat_id: int, user_id: int) -> bool:
+async def is_admin(client, chat_id, user_id):
     try:
         member = await client.get_chat_member(chat_id, user_id)
         return member.status in ["creator", "administrator"]
     except:
         return False
 
-async def is_creator(client, chat_id: int, user_id: int) -> bool:
+async def is_creator(client, chat_id, user_id):
     try:
         member = await client.get_chat_member(chat_id, user_id)
         return member.status == "creator"
     except:
         return False
 
+def _find_slang_file():
+    base_dir = os.path.dirname(__file__)
+    candidates = [
+        os.path.join(base_dir, "slang_words.txt"),
+        os.path.abspath(os.path.join(base_dir, "..", "slang_words.txt")),
+        os.path.join(os.getcwd(), "slang_words.txt")
+    ]
+    for p in candidates:
+        if os.path.isfile(p):
+            return p
+    return candidates[1]
+
 def load_slang_words() -> Set[str]:
     slang_variants = set()
-    base_dir = os.path.dirname(__file__)
-    slang_file = os.path.join(base_dir, "slang_words.txt")
+    slang_file = _find_slang_file()
     try:
-        with open(slang_file, 'r', encoding='utf-8') as f:
+        with open(slang_file, "r", encoding="utf-8") as f:
             for line in f:
                 word = line.strip()
-                if not word or word.startswith('#'):
+                if not word or word.startswith("#"):
                     continue
                 lower = word.lower()
                 slang_variants.add(lower)
-                # also add original, title and upper variants (only if distinct)
                 if word != lower:
                     slang_variants.add(word)
                 title = lower.title()
@@ -80,14 +99,12 @@ def load_slang_words() -> Set[str]:
                 upper = lower.upper()
                 if upper != word and upper != lower:
                     slang_variants.add(upper)
-        logger.info(f"Loaded {len(slang_variants)} slang word variants (including case variations)")
+        logger.info(f"Loaded {len(slang_variants)} slang word variants from {slang_file}")
         return slang_variants
     except FileNotFoundError:
-        logger.warning(f"{slang_file} not found, creating empty file")
         os.makedirs(os.path.dirname(slang_file), exist_ok=True)
-        with open(slang_file, 'w', encoding='utf-8') as f:
-            f.write("# Add slang words here (one per line)\n")
+        with open(slang_file, "w", encoding="utf-8") as f:
+            f.write("# Add slang words here\n")
         return set()
-    except Exception as e:
-        logger.error(f"Error loading slang words: {e}")
+    except Exception:
         return set()
