@@ -12,8 +12,13 @@ class LanguageManager:
         self.load_languages()
     
     def load_languages(self):
-        strings_dir = "strings"
+        # load from package-relative 'strings' directory
+        base_dir = os.path.dirname(__file__)
+        strings_dir = os.path.join(base_dir, "strings")
         try:
+            if not os.path.isdir(strings_dir):
+                logger.warning(f"strings directory not found at {strings_dir}")
+                return
             for file in os.listdir(strings_dir):
                 if file.endswith(".json"):
                     lang_code = file.replace(".json", "")
@@ -56,15 +61,18 @@ async def is_creator(client, chat_id: int, user_id: int) -> bool:
 
 def load_slang_words() -> Set[str]:
     slang_variants = set()
+    base_dir = os.path.dirname(__file__)
+    slang_file = os.path.join(base_dir, "slang_words.txt")
     try:
-        with open("slang_words.txt", 'r', encoding='utf-8') as f:
+        with open(slang_file, 'r', encoding='utf-8') as f:
             for line in f:
                 word = line.strip()
                 if not word or word.startswith('#'):
                     continue
                 lower = word.lower()
                 slang_variants.add(lower)
-                if lower != word:
+                # also add original, title and upper variants (only if distinct)
+                if word != lower:
                     slang_variants.add(word)
                 title = lower.title()
                 if title != word and title != lower:
@@ -75,8 +83,9 @@ def load_slang_words() -> Set[str]:
         logger.info(f"Loaded {len(slang_variants)} slang word variants (including case variations)")
         return slang_variants
     except FileNotFoundError:
-        logger.warning("slang_words.txt not found, creating empty file")
-        with open("slang_words.txt", 'w', encoding='utf-8') as f:
+        logger.warning(f"{slang_file} not found, creating empty file")
+        os.makedirs(os.path.dirname(slang_file), exist_ok=True)
+        with open(slang_file, 'w', encoding='utf-8') as f:
             f.write("# Add slang words here (one per line)\n")
         return set()
     except Exception as e:
