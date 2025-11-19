@@ -10,7 +10,9 @@ BOT_USERNAME = os.getenv("BOT_USERNAME", "")
 
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME", "Guardify")
+
 PRETENDER_DB_URI = os.getenv("PRETENDER_DB_URI")
+PRETENDER_DB_NAME = os.getenv("PRETENDER_DB_NAME", "Rankings")
 
 OWNER_ID = int(os.getenv("OWNER_ID", "5960968099"))
 SUDO_USERS = list(map(int, os.getenv("SUDO_USERS", "").split(","))) if os.getenv("SUDO_USERS") else []
