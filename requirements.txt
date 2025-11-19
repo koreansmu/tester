@@ -2,6 +2,7 @@ pyrotgfork==2.2.16
 TgCrypto
 pymongo
 motor
+orjson
 python-dotenv
 aiofiles
 pillow
