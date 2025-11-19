@@ -88,8 +88,13 @@ class Database:
         except Exception as e:
             logger.warning("Error creating indexes: %s", e)
 
-    
+    # ensure connection helper
+    async def _ensure(self):
+        if not (self.client and self.db and self.users):
+            await self.connect()
+
     async def add_active_group(self, chat_id: int, chat_title: str):
+        await self._ensure()
         try:
             res = await self.active_groups.update_one(
                 {"chat_id": chat_id},
@@ -106,6 +111,7 @@ class Database:
             pass
 
     async def remove_active_group(self, chat_id: int):
+        await self._ensure()
         res = await self.active_groups.delete_one({"chat_id": chat_id})
         if getattr(res, "deleted_count", 0) > 0:
             await self.overall_stats.update_one(
@@ -115,9 +121,11 @@ class Database:
             )
 
     async def get_active_groups(self):
+        await self._ensure()
         return [g async for g in self.active_groups.find()]
 
     async def add_user(self, user_id: int, username=None, first_name=None):
+        await self._ensure()
         try:
             res = await self.users.update_one(
                 {"user_id": user_id},
@@ -134,9 +142,11 @@ class Database:
             pass
 
     async def get_all_users(self):
+        await self._ensure()
         return [u async for u in self.users.find()]
 
     async def set_media_delay(self, chat_id: int, delay: int):
+        await self._ensure()
         await self.media_settings.update_one(
             {"chat_id": chat_id},
             {"$set": {"delay": delay, "enabled": True}},
@@ -144,10 +154,12 @@ class Database:
         )
 
     async def get_media_delay(self, chat_id: int):
+        await self._ensure()
         result = await self.media_settings.find_one({"chat_id": chat_id})
         return result.get("delay") if result and result.get("enabled") else None
 
     async def disable_media_guard(self, chat_id: int):
+        await self._ensure()
         await self.media_settings.update_one(
             {"chat_id": chat_id},
             {"$set": {"enabled": False}},
@@ -155,6 +167,7 @@ class Database:
         )
 
     async def set_edit_delay(self, chat_id: int, delay: int):
+        await self._ensure()
         await self.edit_settings.update_one(
             {"chat_id": chat_id},
             {"$set": {"delay": delay, "enabled": True}},
@@ -162,10 +175,12 @@ class Database:
         )
 
     async def get_edit_delay(self, chat_id: int):
+        await self._ensure()
         result = await self.edit_settings.find_one({"chat_id": chat_id})
         return result.get("delay") if result and result.get("enabled") else None
 
     async def set_slang_filter(self, chat_id: int, enabled: bool):
+        await self._ensure()
         await self.slang_settings.update_one(
             {"chat_id": chat_id},
             {"$set": {"enabled": enabled}},
@@ -173,10 +188,12 @@ class Database:
         )
 
     async def get_slang_status(self, chat_id: int):
+        await self._ensure()
         result = await self.slang_settings.find_one({"chat_id": chat_id})
         return result.get("enabled", False) if result else False
 
     async def set_auto_clean(self, chat_id: int, enabled: bool):
+        await self._ensure()
         await self.groups_stats.update_one(
             {"chat_id": chat_id},
             {"$set": {"auto_clean": enabled}},
@@ -184,10 +201,12 @@ class Database:
         )
 
     async def get_auto_clean_status(self, chat_id: int):
+        await self._ensure()
         result = await self.groups_stats.find_one({"chat_id": chat_id})
         return result.get("auto_clean", False) if result else False
 
     async def set_pretender(self, chat_id: int, enabled: bool):
+        await self._ensure()
         await self.pretender_settings.update_one(
             {"chat_id": chat_id},
             {"$set": {"enabled": enabled}},
@@ -195,10 +214,12 @@ class Database:
         )
 
     async def get_pretender_status(self, chat_id: int):
+        await self._ensure()
         result = await self.pretender_settings.find_one({"chat_id": chat_id})
         return result.get("enabled", False) if result else False
 
     async def add_edit_auth(self, chat_id: int, user_id: int):
+        await self._ensure()
         await self.edit_auth.update_one(
             {"chat_id": chat_id, "user_id": user_id},
             {"$set": {"chat_id": chat_id, "user_id": user_id}},
@@ -206,15 +227,19 @@ class Database:
         )
 
     async def remove_edit_auth(self, chat_id: int, user_id: int):
+        await self._ensure()
         await self.edit_auth.delete_one({"chat_id": chat_id, "user_id": user_id})
 
     async def is_edit_authorized(self, chat_id: int, user_id: int):
+        await self._ensure()
         return await self.edit_auth.find_one({"chat_id": chat_id, "user_id": user_id}) is not None
 
     async def get_edit_auth_list(self, chat_id: int):
+        await self._ensure()
         return [u async for u in self.edit_auth.find({"chat_id": chat_id})]
 
     async def add_media_auth(self, chat_id: int, user_id: int):
+        await self._ensure()
         await self.media_auth.update_one(
             {"chat_id": chat_id, "user_id": user_id},
             {"$set": {"chat_id": chat_id, "user_id": user_id}},
@@ -222,15 +247,19 @@ class Database:
         )
 
     async def remove_media_auth(self, chat_id: int, user_id: int):
+        await self._ensure()
         await self.media_auth.delete_one({"chat_id": chat_id, "user_id": user_id})
 
     async def is_media_authorized(self, chat_id: int, user_id: int):
+        await self._ensure()
         return await self.media_auth.find_one({"chat_id": chat_id, "user_id": user_id}) is not None
 
     async def get_media_auth_list(self, chat_id: int):
+        await self._ensure()
         return [u async for u in self.media_auth.find({"chat_id": chat_id})]
 
     async def add_slang_auth(self, chat_id: int, user_id: int):
+        await self._ensure()
         await self.slang_auth.update_one(
             {"chat_id": chat_id, "user_id": user_id},
             {"$set": {"chat_id": chat_id, "user_id": user_id}},
@@ -238,15 +267,19 @@ class Database:
         )
 
     async def remove_slang_auth(self, chat_id: int, user_id: int):
+        await self._ensure()
         await self.slang_auth.delete_one({"chat_id": chat_id, "user_id": user_id})
 
     async def is_slang_authorized(self, chat_id: int, user_id: int):
+        await self._ensure()
         return await self.slang_auth.find_one({"chat_id": chat_id, "user_id": user_id}) is not None
 
     async def get_slang_auth_list(self, chat_id: int):
+        await self._ensure()
         return [u async for u in self.slang_auth.find({"chat_id": chat_id})]
 
     async def add_gban(self, user_id: int, reason=None, duration=None):
+        await self._ensure()
         try:
             await self.gban_users.update_one(
                 {"user_id": user_id},
@@ -262,9 +295,11 @@ class Database:
             pass
 
     async def remove_gban(self, user_id: int):
+        await self._ensure()
         await self.gban_users.delete_one({"user_id": user_id})
 
     async def is_gbanned(self, user_id: int):
+        await self._ensure()
         result = await self.gban_users.find_one({"user_id": user_id})
         if not result:
             return False
@@ -276,9 +311,11 @@ class Database:
         return True
 
     async def get_gban_list(self):
+        await self._ensure()
         return [u async for u in self.gban_users.find()]
 
     async def set_group_language(self, chat_id: int, lang: str):
+        await self._ensure()
         await self.group_languages.update_one(
             {"chat_id": chat_id},
             {"$set": {"language": lang}},
@@ -286,10 +323,12 @@ class Database:
         )
 
     async def get_group_language(self, chat_id: int):
+        await self._ensure()
         result = await self.group_languages.find_one({"chat_id": chat_id})
         return result.get("language", "en") if result else "en"
 
     async def log_admin_action(self, chat_id: int, admin_id: int, action: str, target_user=None):
+        await self._ensure()
         await self.admin_logs.insert_one({
             "chat_id": chat_id,
             "admin_id": admin_id,
@@ -299,10 +338,12 @@ class Database:
         })
 
     async def get_admin_logs(self, chat_id: int, limit=50):
+        await self._ensure()
         cursor = self.admin_logs.find({"chat_id": chat_id}).sort("timestamp", -1).limit(limit)
         return [l async for l in cursor]
 
     async def get_total_stats(self):
+        await self._ensure()
         global_doc = await self.overall_stats.find_one({"_id": "global"}) or {"total_groups": 0, "total_users": 0}
         edit_enabled = await self.edit_settings.count_documents({"enabled": True})
         media_enabled = await self.media_settings.count_documents({"enabled": True})
@@ -316,6 +357,7 @@ class Database:
         }
 
     async def rebuild_overall_stats(self):
+        await self._ensure()
         total_groups = await self.active_groups.count_documents({})
         total_users = await self.users.count_documents({})
         await self.overall_stats.update_one(
@@ -325,6 +367,7 @@ class Database:
         )
 
     async def set_user_language(self, user_id: int, lang: str):
+        await self._ensure()
         await self.users.update_one(
             {"user_id": user_id},
             {"$set": {"language": lang}},
@@ -332,5 +375,6 @@ class Database:
         )
 
     async def get_user_language(self, user_id: int):
+        await self._ensure()
         result = await self.users.find_one({"user_id": user_id})
         return result.get("language", "en") if result else "en"
