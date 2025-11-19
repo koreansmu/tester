@@ -4,7 +4,7 @@ from cachetools import TTLCache
 import logging
 from typing import Any, Optional
 from config import CACHE_TTL
-from utils.logger import logger as ulogger
+from utils import logger as ulogger
 
 logger = logging.getLogger(__name__)
 
