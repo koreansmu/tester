@@ -141,7 +141,7 @@ async def handle_edited_message(client: Client, message: Message):
         lang = await db.get_group_language(chat_id)
         username = f"@{user.username}" if user.username else user.first_name
         warning_text = get_lang("edit_warning", lang, user=username, delay=delay)
-        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🚨 ʀᴇᴘᴏʀᴛ sᴘᴀᴍ", url=SUPPORT_CHAT)]])
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🚨 ʀᴇᴘᴏʀᴛ sᴘᴀᴍ ?", url=SUPPORT_CHAT)]])
         try:
             warning_msg = await message.reply_text(warning_text, reply_markup=keyboard)
         except Exception:
