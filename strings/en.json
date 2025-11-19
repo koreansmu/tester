@@ -68,7 +68,7 @@
   "nsfw_current_mode": "Current mode: **{mode}**",
   "nsfw_usage": "`/antinsfw fast`  •  `/antinsfw slow`",
   "nsfw_only_owner_change": "Only group owner can change this.",
-  "nsfw_detected": "⚠️ NSFW content detected\n\nUser: {user}\nConfidence: {confidence}\nThis message has been removed."
+  "nsfw_detected": "⚠️ NSFW content detected\n\nUser: {user}\nConfidence: {confidence}\nThis message has been removed.",
   "pretender_alert": "🚨 Pretender Alert!\n\n{user} changed their profile:",
   "pretender_disabled": "🛑 Pretender detection disabled.",
   "pretender_enabled": "✅ Pretender detection enabled!",
