@@ -8,8 +8,8 @@ from utils.cache import get_cache, init_cache
 logger = logging.getLogger(__name__)
 
 LANGUAGES = {
-    "en": "🇬🇧 English",
-    "hi": "🇮🇳 हिंदी"
+    "en": "English",
+    "hi": "हिंदी"
 }
 
 def get_language_keyboard(current_lang: str = "en"):
