@@ -1,6 +1,7 @@
 import asyncio
 import os
 import logging
+import config
 from motor.motor_asyncio import AsyncIOMotorClient
 from typing import Union, Dict
 from pyrogram import Client, filters
@@ -15,10 +16,8 @@ db = Database()
 cache = CacheManager()
 logger = logging.getLogger(__name__)
 
-MONGO_DB_URI = os.getenv(
-    "PRETENDER_DB_URI",
-    "mongodb://localhost:27017/"
-)
+MONGO_DB_URI = config.PRETENDER_DB_URI
+
 _motor_client = AsyncIOMotorClient(MONGO_DB_URI)
 _impdb = _motor_client.get_default_database().pretender
 
