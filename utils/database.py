@@ -1,4 +1,3 @@
-import os
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, DuplicateKeyError
 import logging
