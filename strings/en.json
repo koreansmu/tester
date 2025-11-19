@@ -21,6 +21,7 @@
   "bcast_usage": "🛑 Usage: `/bcast <message>` or reply to a message with `/bcast`",
   "creator_only": "🛑 This command is for group creator only!",
   "developer_info": "🍁 **ᴅᴇᴠᴇʟᴏᴘᴇʀ ɪɴғᴏ**\n\nᴀʟʟ ᴛʜᴇ ғᴇᴀᴛᴜʀᴇs ᴏғ ᴍɪɴᴇ ʙʟᴏssᴏᴍs & ᴇᴀsᴇ ᴏғ ᴀᴄᴄᴇss ʏᴏᴜ ᴀʀᴇ ᴇɴᴊᴏʏɪɴɢ ʜᴀssʟᴇ-ғʀᴇᴇ ᴅᴜᴇ ᴛᴏ ᴍʏ ᴄʀᴇᴀᴛᴏʀ 🍁",
+  "eauthlist_header": "Edit Message Authorized users:"
   "eauth_success": "✅ User authorized to edit messages!",
   "eauth_usage": "🛑 Reply to a user or provide user ID.\nUsage: `/eauth` or `/eauth <user_id>`",
   "edelay_success": "Edit delay set to {delay} minute(s).",
