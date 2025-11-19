@@ -43,7 +43,7 @@ async def _ensure_cache():
                 return None
         return _FallbackCache()
 
-async def _get_user_lang(user_id: int) -> str:
+async def get_user_lang(user_id: int) -> str:
     cache = await _ensure_cache()
     try:
         lang = await asyncio.to_thread(lambda: cache.get_setting(user_id, "language"))
@@ -63,7 +63,7 @@ async def _get_user_lang(user_id: int) -> str:
         pass
     return lang
 
-async def _get_group_lang(chat_id: int) -> str:
+async def get_group_lang(chat_id: int) -> str:
     cache = await _ensure_cache()
     try:
         lang = await asyncio.to_thread(lambda: cache.get_setting(chat_id, "language"))
