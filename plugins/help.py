@@ -1,5 +1,11 @@
 from pyrogram import Client, filters
-from pyrogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import (
+    Message,
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    LinkPreviewOptions
+)
 import asyncio
 from utils.helpers import get_lang
 from utils.cache import get_cache
@@ -35,7 +41,12 @@ async def help_command(client: Client, message: Message):
     lang = lang or "en"
 
     txt = get_lang("help_main", lang)
-    await message.reply_text(txt, reply_markup=get_help_keyboard(), link_preview_options={"disable_web_page_preview": True})
+
+    await message.reply_text(
+        txt,
+        reply_markup=get_help_keyboard(),
+        link_preview=LinkPreviewOptions(is_disabled=True)
+    )
 
 @Client.on_callback_query(filters.regex("^help_"))
 async def help_callback(client: Client, callback: CallbackQuery):
@@ -84,7 +95,7 @@ async def help_callback(client: Client, callback: CallbackQuery):
         await callback.message.edit_text(
             txt,
             reply_markup=kb,
-            link_preview_options={"disable_web_page_preview": True}
+            link_preview=LinkPreviewOptions(is_disabled=True)
         )
         await callback.answer()
     except Exception:
