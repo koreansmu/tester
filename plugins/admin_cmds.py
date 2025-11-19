@@ -13,12 +13,23 @@ db = Database()
 cache = CacheManager()
 logger = logging.getLogger(__name__)
 
-
 def _is_sudo(uid: int) -> bool:
     if isinstance(SUDO_USERS, (list, tuple, set)):
         return uid in SUDO_USERS
     return uid == SUDO_USERS
 
+async def _send(message: Message, text: str, reply_markup=None):
+    try:
+        await message.reply_text(text, reply_markup=reply_markup, link_preview_options=LinkPreviewOptions(is_disabled=True))
+        return
+    except TypeError:
+        pass
+    try:
+        await message.reply_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
+        return
+    except TypeError:
+        pass
+    await message.reply_text(text, reply_markup=reply_markup)
 
 @Client.on_message(filters.command("reload") & filters.group)
 @admin_only
@@ -51,17 +62,10 @@ async def reload_admins(client: Client, message: Message):
         except Exception:
             pass
 
-        await message.reply_text(
-            get_lang("reload_success", lang, count=len(admins)),
-            link_preview=LinkPreviewOptions(is_disabled=True)
-        )
+        await _send(message, get_lang("reload_success", lang, count=len(admins)))
     except Exception as e:
         logger.exception(e)
-        await message.reply_text(
-            get_lang("reload_failed", lang),
-            link_preview=LinkPreviewOptions(is_disabled=True)
-        )
-
+        await _send(message, get_lang("reload_failed", lang))
 
 @Client.on_message(filters.command("autoclean") & filters.group)
 @admin_only
@@ -69,10 +73,7 @@ async def toggle_autoclean(client: Client, message: Message):
     lang = await db.get_group_language(message.chat.id)
 
     if len(message.command) < 2:
-        await message.reply_text(
-            get_lang("autoclean_usage", lang),
-            link_preview=LinkPreviewOptions(is_disabled=True)
-        )
+        await _send(message, get_lang("autoclean_usage", lang))
         return
 
     status = message.command[1].lower()
@@ -86,10 +87,7 @@ async def toggle_autoclean(client: Client, message: Message):
                 maybe = cache.set_setting(message.chat.id, "auto_clean", True)
                 if asyncio.iscoroutine(maybe):
                     await maybe
-            await message.reply_text(
-                get_lang("autoclean_enabled", lang),
-                link_preview=LinkPreviewOptions(is_disabled=True)
-            )
+            await _send(message, get_lang("autoclean_enabled", lang))
         elif status == "off":
             await db.set_auto_clean(message.chat.id, False)
             try:
@@ -98,22 +96,12 @@ async def toggle_autoclean(client: Client, message: Message):
                 maybe = cache.set_setting(message.chat.id, "auto_clean", False)
                 if asyncio.iscoroutine(maybe):
                     await maybe
-            await message.reply_text(
-                get_lang("autoclean_disabled", lang),
-                link_preview=LinkPreviewOptions(is_disabled=True)
-            )
+            await _send(message, get_lang("autoclean_disabled", lang))
         else:
-            await message.reply_text(
-                get_lang("autoclean_usage", lang),
-                link_preview=LinkPreviewOptions(is_disabled=True)
-            )
+            await _send(message, get_lang("autoclean_usage", lang))
     except Exception as e:
         logger.exception(e)
-        await message.reply_text(
-            get_lang("autoclean_failed", lang),
-            link_preview=LinkPreviewOptions(is_disabled=True)
-        )
-
+        await _send(message, get_lang("autoclean_failed", lang))
 
 @Client.on_message(filters.command("stats") & (filters.private | filters.group))
 async def show_stats(client: Client, message: Message):
@@ -132,17 +120,10 @@ async def show_stats(client: Client, message: Message):
         text += get_lang("stats_media_enabled", lang, count=stats.get("media_enabled", 0)) + "\n"
         text += get_lang("stats_slang_enabled", lang, count=stats.get("slang_enabled", 0))
 
-        await message.reply_text(
-            text,
-            link_preview=LinkPreviewOptions(is_disabled=True)
-        )
+        await _send(message, text)
     except Exception as e:
         logger.exception(e)
-        await message.reply_text(
-            "An error occurred while fetching stats.",
-            link_preview=LinkPreviewOptions(is_disabled=True)
-        )
-
+        await _send(message, "An error occurred while fetching stats.")
 
 @Client.on_message(filters.command("dev"))
 async def developer_info(client: Client, message: Message):
@@ -153,23 +134,16 @@ async def developer_info(client: Client, message: Message):
 
     try:
         dev_text = get_lang("developer_info", lang)
-        await message.reply_text(
-            dev_text,
-            link_preview=LinkPreviewOptions(is_disabled=True)
-        )
+        await _send(message, dev_text)
     except Exception as e:
         logger.exception(e)
-
 
 @Client.on_message(filters.command("logadmin") & filters.group)
 async def log_admin_activity(client: Client, message: Message):
     lang = await db.get_group_language(message.chat.id)
 
     if not await is_creator(client, message.chat.id, message.from_user.id):
-        await message.reply_text(
-            get_lang("creator_only", lang),
-            link_preview=LinkPreviewOptions(is_disabled=True)
-        )
+        await _send(message, get_lang("creator_only", lang))
         return
 
     try:
@@ -178,10 +152,7 @@ async def log_admin_activity(client: Client, message: Message):
         logs = None
 
     if not logs:
-        await message.reply_text(
-            get_lang("no_admin_logs", lang),
-            link_preview=LinkPreviewOptions(is_disabled=True)
-        )
+        await _send(message, get_lang("no_admin_logs", lang))
         return
 
     parts = [get_lang("admin_logs_header", lang), ""]
@@ -198,7 +169,4 @@ async def log_admin_activity(client: Client, message: Message):
     if len(text) > 4000:
         text = text[:3990] + "\n\n(…truncated)"
 
-    await message.reply_text(
-        text,
-        link_preview=LinkPreviewOptions(is_disabled=True)
-        )
+    await _send(message, text)
