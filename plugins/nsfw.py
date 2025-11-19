@@ -12,22 +12,32 @@ from utils.database import Database
 from utils.cache import CacheManager
 from utils.helpers import get_lang, is_admin
 from utils.decorators import creator_only
-from config import LOGGER_ID
+from config import LOGGER_ID, NSFW_USE_FAST, NSFW_THRESHOLD
 
 db = Database()
 cache = CacheManager()
 logger = logging.getLogger(__name__)
 
-USE_FAST_PROCESSOR = True
-NSFW_THRESHOLD = 0.7
+# fallbacks
+USE_FAST_PROCESSOR = bool(NSFW_USE_FAST) if ("NSFW_USE_FAST" in globals() or 'NSFW_USE_FAST' in locals()) else True
+NSFW_THRESHOLD = float(NSFW_THRESHOLD) if ("NSFW_THRESHOLD" in globals() or 'NSFW_THRESHOLD' in locals()) else 0.7
+
 nsfw_classifier = None
+
+def _bool_from_any(v):
+    if isinstance(v, bool):
+        return v
+    if v is None:
+        return True
+    s = str(v).lower()
+    return s in ("1", "true", "yes", "on", "fast")
 
 def load_nsfw_model(use_fast=None):
     global nsfw_classifier, USE_FAST_PROCESSOR
     if use_fast is not None:
-        USE_FAST_PROCESSOR = use_fast
+        USE_FAST_PROCESSOR = bool(use_fast)
+    logger.info(f"Loading NSFW model (use_fast={USE_FAST_PROCESSOR})...")
     try:
-        logger.info(f"Loading NSFW model (use_fast={USE_FAST_PROCESSOR})...")
         nsfw_classifier = pipeline(
             "image-classification",
             model="Falconsai/nsfw_image_detection",
@@ -35,8 +45,16 @@ def load_nsfw_model(use_fast=None):
         )
         logger.info("NSFW detection model loaded successfully")
     except Exception as e:
-        logger.error(f"Failed to load NSFW model: {e}")
+        logger.exception("Failed to load NSFW model: %s", e)
         nsfw_classifier = None
+
+# initial load: fallbacks
+_env_use_fast = os.getenv("NSFW_USE_FAST", None)
+if _env_use_fast is not None:
+    try:
+        USE_FAST_PROCESSOR = _bool_from_any(_env_use_fast)
+    except:
+        pass
 
 load_nsfw_model()
 
@@ -46,13 +64,15 @@ def is_nsfw_content(image_path: str):
     try:
         image = Image.open(image_path).convert("RGB")
         results = nsfw_classifier(image)
-        top = max(results, key=lambda x: x["score"])
-        label = top["label"].lower()
-        score = top["score"]
-        is_nsfw = label in ["nsfw", "porn", "hentai"] and score >= NSFW_THRESHOLD
-        return is_nsfw, score, top["label"]
+        # pipeline returns list of dicts {label, score}
+        top = max(results, key=lambda x: x.get("score", 0))
+        label = top.get("label", "Irrelevant")
+        score = float(top.get("score", 0.0))
+        low_label = label.lower()
+        is_nsfw = low_label in ["nsfw", "porn", "hentai"] and score >= NSFW_THRESHOLD
+        return is_nsfw, score, label
     except Exception as e:
-        logger.error(f"NSFW check error: {e}")
+        logger.exception("NSFW check error: %s", e)
         return False, 0.0, "Error"
 
 def extract_video_frame(video_path: str, output_path: str, time_offset: str = "00:00:01") -> bool:
@@ -60,7 +80,7 @@ def extract_video_frame(video_path: str, output_path: str, time_offset: str = "0
     try:
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
         return result.returncode == 0 and os.path.exists(output_path)
-    except:
+    except Exception:
         return False
 
 def trim_video(video_path: str, output_path: str, duration: int = 10) -> bool:
@@ -68,7 +88,7 @@ def trim_video(video_path: str, output_path: str, duration: int = 10) -> bool:
     try:
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
         return result.returncode == 0
-    except:
+    except Exception:
         return False
 
 async def check_and_handle_nsfw(client: Client, message: Message, file_path: str, media_type: str):
@@ -88,23 +108,34 @@ async def check_and_handle_nsfw(client: Client, message: Message, file_path: str
                     os.remove(frame_path)
 
         if is_nsfw:
-            await message.delete()
+            try:
+                await message.delete()
+            except:
+                pass
+
             warning_text = get_lang("nsfw_detected", lang, user=message.from_user.mention, confidence=f"{confidence*100:.1f}%")
-            warning_msg = await client.send_message(message.chat.id, warning_text)
+            try:
+                warning_msg = await client.send_message(message.chat.id, warning_text)
+            except:
+                warning_msg = None
 
             if LOGGER_ID:
                 log_msg = f"**NSFW Content Detected**\n\nUser: {message.from_user.mention} (`{message.from_user.id}`)\nGroup: {message.chat.title} (`{message.chat.id}`)\nConfidence: {confidence*100:.1f}%\nLabel: {label}\nType: {media_type}"
-                await client.send_message(LOGGER_ID, log_msg)
+                try:
+                    await client.send_message(LOGGER_ID, log_msg)
+                except:
+                    pass
 
-            await asyncio.sleep(5)
-            try:
-                await warning_msg.delete()
-            except:
-                pass
+            if warning_msg:
+                await asyncio.sleep(30)
+                try:
+                    await warning_msg.delete()
+                except:
+                    pass
             return True
         return False
     except Exception as e:
-        logger.error(f"Error in NSFW handler: {e}")
+        logger.exception("Error in NSFW handler: %s", e)
         return False
     finally:
         for p in [file_path, file_path + "_trimmed.mp4", file_path + "_frame.jpg"]:
@@ -117,10 +148,10 @@ async def check_and_handle_nsfw(client: Client, message: Message, file_path: str
 @Client.on_message(filters.command("nsfwmode") & filters.group & creator_only)
 async def nsfw_mode_command(client: Client, message: Message):
     arg = (message.text.split(maxsplit=1)[1] if len(message.command) > 1 else "").lower()
-    if arg in ["fast", "true", "1"]:
+    if arg in ["fast", "true", "1", "on"]:
         load_nsfw_model(use_fast=True)
         await message.reply("NSFW model reloaded → **fast processor**")
-    elif arg in ["slow", "false", "0"]:
+    elif arg in ["slow", "false", "0", "off"]:
         load_nsfw_model(use_fast=False)
         await message.reply("NSFW model reloaded → **slow/exact processor**")
     else:
@@ -148,7 +179,7 @@ async def check_video_nsfw(client: Client, message: Message):
         return
     media = message.animation or message.video
     media_type = "gif" if message.animation else "video"
-    if media.file_size > 50 * 1024 * 1024:
+    if media.file_size and media.file_size > 50 * 1024 * 1024:
         return
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
         file_path = tmp.name
@@ -156,7 +187,10 @@ async def check_video_nsfw(client: Client, message: Message):
     if getattr(media, "duration", 0) and media.duration > 10:
         trimmed = file_path + "_trimmed.mp4"
         if trim_video(file_path, trimmed, 10):
-            os.remove(file_path)
+            try:
+                os.remove(file_path)
+            except:
+                pass
             file_path = trimmed
     await check_and_handle_nsfw(client, message, file_path, media_type)
 
@@ -178,6 +212,6 @@ async def check_sticker_nsfw(client: Client, message: Message):
         img.convert("RGB").save(jpg_path, "JPEG")
         os.remove(file_path)
         file_path = jpg_path
-    except:
+    except Exception:
         pass
     await check_and_handle_nsfw(client, message, file_path, "sticker")
